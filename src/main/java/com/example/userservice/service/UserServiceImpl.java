@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -54,16 +55,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto createUser(UserDto userDto) {
-        userDto.setUserId(UUID.randomUUID().toString());
-
+        if(userDto.getUserId() == null) {
+            return createUser(makeUserId(userDto));
+        }
         ModelMapper mapper = new ModelMapper();
         mapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
         UserEntity userEntity = mapper.map(userDto, UserEntity.class);
         userEntity.setEncryptedPassword(passwordEncoder.encode(userDto.getPassword()));
+        return mapper.map(userRepository.save(userEntity), UserDto.class);
+    }
 
-        userRepository.save(userEntity);
-
-        return mapper.map(userEntity, UserDto.class);
+    private UserDto makeUserId(UserDto userDto) {
+        userDto.setUserId(UUID.randomUUID().toString());
+        return userDto;
     }
 
     @Override
@@ -75,33 +79,20 @@ public class UserServiceImpl implements UserService {
 
         UserDto userDto = new ModelMapper().map(userEntity, UserDto.class);
 
-//        List<ResponseOrder> orders = new ArrayList<>();
-//        String orderUrl = String.format(env.getProperty("order_service.url"), userId);
-//        ResponseEntity<List<ResponseOrder>> orderListResponse = restTemplate.exchange(orderUrl, HttpMethod.GET, null, new ParameterizedTypeReference<List<ResponseOrder>>() {
-//
-//        });
-//        List<ResponseOrder> ordersList = orderListResponse.getBody();
-
-
-        /* Using a FeignClient */
-//        List<ResponseOrder> ordersList = null;
-//        try {
-//            ordersList = orderServiceClient.getOrders(userId);
-//        }catch (FeignException ex){
-//            log.error(ex.getMessage());
-//        }
-
-        /* Error Decoder*/
-//        List<ResponseOrder> ordersList = orderServiceClient.getOrders(userId);
         log.info("Before call orders microservice");
-        CircuitBreaker circuitBreaker =  circuitBreakerFactory.create("circuitbreaker");
-        List<ResponseOrder> ordersList = circuitBreaker.run(() -> orderServiceClient.getOrders(userId),
-                throwable -> new ArrayList<>());
+        List<ResponseOrder> ordersList = getResponseOrders(userId);
         log.info("After call orders microservice");
         userDto.setOrders(ordersList);
 
-
         return userDto;
+    }
+
+    public List<ResponseOrder> getResponseOrders(String userId) {
+        CircuitBreaker circuitBreaker = circuitBreakerFactory.create("circuitbreaker");
+        if(circuitBreaker == null) return Collections.emptyList();
+        List<ResponseOrder> responseOrders = circuitBreaker.run(() -> orderServiceClient.getOrders(userId),
+                throwable -> new ArrayList<>());
+        return responseOrders;
     }
 
     @Override
