@@ -1,11 +1,13 @@
 package com.example.userservice.vo;
 
 
+import lombok.Builder;
 import lombok.Data;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 @Data
+@Builder
 public class RequestUser {
     @NotNull(message = "Email can't be null")
     @Size(min = 2, message = "Email not be less than two characters")
