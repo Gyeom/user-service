@@ -46,11 +46,12 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        userDto = new UserDto();
-        userDto.setUserId(USER_ID);
-        userDto.setPassword(PASSWORD);
-        userDto.setName(USER_NAME);
-        userDto.setEmail(EMAIL);
+        userDto = UserDto.builder()
+                .userId(USER_ID)
+                .password(PASSWORD)
+                .name(USER_NAME)
+                .email(EMAIL)
+                .build();
         ModelMapper mapper = new ModelMapper();
         mapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
         userEntity = mapper.map(userDto, UserEntity.class);
